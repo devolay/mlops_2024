@@ -1,5 +1,5 @@
 from aws_cdk.aws_lambda import DockerImageFunction, DockerImageCode
-from aws_cdk import Stack
+from aws_cdk import Stack, Duration
 from constructs import Construct
 
 from stacks.initial_setup import InitialSetupStack
@@ -15,7 +15,9 @@ class LambdaStack(Stack):
         # Create a Lambda function from the Docker image
         self.lambda_function = DockerImageFunction(
             self, "InferenceLambda",
-            code=DockerImageCode.from_ecr(repository=docker_image.repository, tag_or_digest=docker_image.image_tag)
+            code=DockerImageCode.from_ecr(repository=docker_image.repository, tag_or_digest=docker_image.image_tag),
+            memory_size=2048,
+            timeout=Duration.seconds(120),
         )
 
         # Grant Permissions

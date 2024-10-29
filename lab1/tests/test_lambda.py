@@ -6,7 +6,7 @@ lambda_client = boto3.client('lambda')
 
 # Prepare the event payload
 payload = {
-    "input_key": "your-image.jpg"
+    "input_key": "test-image.jpg"
 }
 
 # Invoke the Lambda function

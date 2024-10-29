@@ -1,12 +1,18 @@
-FROM public.ecr.aws/lambda/python:3.12
+FROM public.ecr.aws/lambda/python:3.8
 
-WORKDIR /var/task
+ARG bucket_name
+ENV BUCKET_NAME $bucket_name
 
 RUN mkdir -p /model
-ENV MODEL_PATH /var/task/model
+ENV MODEL_PATH /model
 
-COPY inference/* .
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+COPY inference/requirements.txt ./
 RUN pip install -r requirements.txt
-RUN python download_model.py
 
-CMD ["app.lambda_handler"]
+COPY inference/download_model.py ./
+RUN python3 download_model.py
+
+COPY inference/app.py ./
+CMD [ "app.handler" ]

@@ -1,53 +1,71 @@
 import os
-import boto3
 import json
+import boto3
 import torch
+import logging
+
 from PIL import Image
-import io
+from io import BytesIO
+from torchvision import transforms
 
-model = torch.load(os.environ['MODEL_PATH'])
-model.eval()
+log_level = os.environ.get('LAMBDA_LOG_LEVEL', 'INFO')
+logger = logging.getLogger()
+logger.setLevel(log_level)
 
-def lambda_handler(event, context):
+
+def handler(event, context):
+    logger.info("Initializing model")
+    model = torch.load(f"{os.environ['MODEL_PATH']}/model.pth")
+    model.eval()
+    logger.info("Model initialized")
+
+    input_key = event['input_key']
     bucket_name = os.environ['BUCKET_NAME']
-    input_key = f"input/{event['input_key']}"
-    output_key = f"output/{event['input_key']}"
-    
+    logger.info(f"Received request to process image at s3://{bucket_name}/input/{input_key}")
+
     # Initialize S3 client
-    s3 = boto3.client('s3')
-    
-    # Download the image from S3
-    response = s3.get_object(Bucket=bucket_name, Key=input_key)
-    image_content = response['Body'].read()
-    
-    # Open the image
-    image = Image.open(io.BytesIO(image_content)).convert('RGB')
-    
-    # Preprocess the image
-    preprocess = torch.transforms.Compose([
-        torch.transforms.Resize(256),
-        torch.transforms.CenterCrop(224),
-        torch.transforms.ToTensor(),
-        torch.transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
+    s3_client = boto3.client('s3')
+    logger.info("S3 client initialized")
+
+    # Define basic image transformations
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-    input_tensor = preprocess(image)
-    input_batch = input_tensor.unsqueeze(0)  # Create a mini-batch
-    
-    # Perform inference
+
+    # Download image from S3
+    logger.info("Loading image")
+    img_data = s3_client.get_object(Bucket=bucket_name, Key=f"input/{input_key}")
+    img = Image.open(BytesIO(img_data['Body'].read())).convert('RGB')
+    logger.info("Image loaded")
+
+    # Preprocess the image
+    logger.info("Preprocessing image")
+    input_tensor = transform(img).unsqueeze(0)
+
+    # Run inference
+    logger.info("Running inference")
     with torch.no_grad():
-        output = model(input_batch)
-    
-    # Process the output as needed
+        output = model(input_tensor)
+    logger.info("Inference complete")
+
+    # Process output (e.g., get top prediction)
     _, predicted = torch.max(output, 1)
-    result = predicted.item()
-    
-    # Save the result back to S3
-    s3.put_object(Bucket=bucket_name, Key=output_key, Body=json.dumps({'prediction': result}))
-    
+    predicted_class = predicted.item()
+
+    # Save output to S3
+    logger.info("Saving output")
+    output_key = f"output/{input_key}_prediction.json"
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=output_key,
+        Body=json.dumps({'predicted_class': predicted_class})
+    )
+    logger.info(f"Output saved at s3://{bucket_name}/{output_key}")
+
     return {
         'statusCode': 200,
-        'body': json.dumps('Inference complete')
+        'body': json.dumps(f'Inference complete. Result saved at {output_key}')
     }
