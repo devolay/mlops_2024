@@ -27,8 +27,8 @@ class MNISTModel(pl.LightningModule):
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         # Log metrics
-        self.log('train_loss', loss, prog_bar=True)
-        self.log('train_acc', acc, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True)
+        self.log("train_acc", acc, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -38,8 +38,8 @@ class MNISTModel(pl.LightningModule):
         acc = (logits.argmax(dim=1) == y).float().mean()
 
         # Log metrics
-        self.log('val_loss', loss, prog_bar=True)
-        self.log('val_acc', acc, prog_bar=True)
+        self.log("val_loss", loss, prog_bar=True)
+        self.log("val_acc", acc, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
