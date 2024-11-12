@@ -1,0 +1,8 @@
+.venv
+.env
+.neptune
+
+__pycache__/
+*.egg-info/
+
+MNIST/

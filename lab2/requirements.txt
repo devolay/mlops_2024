@@ -1,0 +1,8 @@
+torch
+torchvision
+numpy
+lightning
+optuna
+neptune
+python-dotenv
+optuna-integration[lightning]
